@@ -1,0 +1,29 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/apernet/OpenGFW
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git build-base upx \
+  && git clone -b $BRANCH --single-branch https://github.com/apernet/OpenGFW /go/src/github.com/apernet/OpenGFW \
+  && go build -v -trimpath \
+    -o /release/openGFW \
+    -ldflags "-s -w -buildid=" \
+  && upx --lzma /release/openGFW
+COPY ./extras/OpenGFW-config.yml /release/config.yml
+COPY ./extras/OpenGFW-rules.yml /release/rules.yml
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+WORKDIR /app
+RUN set -ex \
+  && apk upgrade \
+  && apk add bash tzdata ca-certificates \
+  && rm -rf /var/cache/apk/*
+
+COPY --from=builder /release/* /app
+ENTRYPOINT [ "/app/openGFW", "-c", "config.yml", "rules.yml" ]
