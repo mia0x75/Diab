@@ -9,7 +9,7 @@ RUN set -ex \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
   && apk update \
   && apk upgrade \
-  && apk add git tzdata upx \
+  && apk add git build-base make tzdata upx musl-dev gcc \
   && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt . \
   && pwd \
   && ls -lah \
