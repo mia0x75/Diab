@@ -82,5 +82,12 @@
     "type": 1,
     "pattern": "",
     "version": "v3.35.0"
+  },
+  {
+    "owner": "dolthub",
+    "repo": "dolt",
+    "type": 1,
+    "pattern": "",
+    "version": "v1.0.0"
   }
 ]

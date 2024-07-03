@@ -1,0 +1,33 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/dolthub/dolt
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git tzdata upx \
+  && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt /go/src/github.com/dolthub/dolt \
+  && cd go/cmd/dolt \
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' -w -s -buildid=" -o /release/usr/local/bin/dolt \
+  && upx --lzma /release/usr/local/bin/dolt
+
+COPY extras/Dolt-entrypoint.sh /release/entrypoint.sh
+RUN chmod +x /release/entrypoint.sh
+RUN mkdir /release/docker-entrypoint-initdb.d
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+RUN set -ex \
+  && apk upgrade \
+  && apk add --no-cache tini ca-certificates \
+  && rm -rf /var/cache/apk/*
+
+VOLUME /var/lib/dolt
+COPY --from=builder /release /
+EXPOSE 3306 33060
+WORKDIR /var/lib/dolt
+ENTRYPOINT ["tini", "--", "/entrypoint.sh"]
+
