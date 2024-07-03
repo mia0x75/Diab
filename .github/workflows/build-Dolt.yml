@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     name: build releases
     env:
-      CGO_ENABLED: 0
+      CGO_ENABLED: 1
       BINARY: dolt
       VERSION: ${{ needs.check-version.outputs.version }}
       GO_VERSION: ${{ needs.check-version.outputs.go_version }}
