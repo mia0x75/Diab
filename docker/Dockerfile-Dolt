@@ -12,9 +12,7 @@ RUN set -ex \
   && apk add git tzdata upx \
   && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt /go/src/github.com/dolthub/dolt \
   && cd go/cmd/dolt \
-  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' -w -s -buildid=" -o bin/dolt \
-  && upx --lzma bin/dolt \
-  && mkdir /release
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' -w -s -buildid=" -o /release/usr/local/bin/dolt
 
 COPY ./extras/Dolt-entrypoint.sh /release/entrypoint.sh
 RUN chmod +x /release/entrypoint.sh
