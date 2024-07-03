@@ -10,6 +10,24 @@ RUN set -ex \
   && apk update \
   && apk upgrade \
   && apk add git build-base make tzdata upx musl-dev gcc \
+  && case "$TARGETOS" in \
+      "linux") ;; \
+      *) echo "ERROR: Unsupported OS: ${TARGETOS}"; exit 1 ;; \
+  esac \
+  && case "$TARGETARCH" in \
+    "amd64") \
+        FILE="x86_64-linux-musl-cross.tgz" \
+        export CC="x86_64-linux-musl-gcc" \
+    ;; \
+    "arm64") \
+        FILE="aarch64-linux-musl-cross.tgz" \
+        export CC="aarch64-linux-musl-gcc" \
+    ;; \
+    *) \
+        echo "ERROR: Unsupported CPU architecture: ${TARGETARCH}"; \
+        exit 1 \
+    ;; \
+  esac \
   && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt . \
   && pwd \
   && ls -lah \
