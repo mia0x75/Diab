@@ -188,7 +188,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           cd dolthub/dolt/go
-          go build -v -trimpath -ldflags "--extldflags ${{ env.ldflags }}" -o release/dolt
+          go build -v -trimpath -ldflags "--extldflags ${{ env.ldflags }}" -o release/dolt cmd/dolt
           upx --lzma release/dolt
           echo "status=success" >> $GITHUB_OUTPUT
 
