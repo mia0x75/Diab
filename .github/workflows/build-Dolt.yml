@@ -141,6 +141,8 @@ jobs:
       VERSION: ${{ needs.check-version.outputs.version }}
       GO_VERSION: ${{ needs.check-version.outputs.go_version }}
       BUILD_DATE: ${{ needs.check-version.outputs.build_date }}
+      TAG: ${{ needs.check-version.outputs.tag }}
+      COMMIT: ${{ needs.check-version.outputs.commit }}
 
     strategy:
       matrix:
@@ -148,36 +150,75 @@ jobs:
         goarch: [amd64, arm64]
 
     steps:
-      - name: checkout code
+      - name: checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: clone repository
-        uses: actions/checkout@v4
+      - name: set up go
+        uses: actions/setup-go@v5
         with:
-          repository: "${{ env.GITHUB_REPO }}"
-          ref: "${{ env.VERSION }}"
-          fetch-depth: 1
+          go-version: '1.22'
 
-      - name: build releases
-        uses: mia0x75/go-release-action@master
+      - name: initialize environment
+        run: |
+          sudo apt-get -qq update --fix-missing
+          sudo apt-get install -y build-essential git upx musl-dev musl-tools
+
+      - name: clone repository
+        run: |
+          git clone https://github.com/dolthub/dolt dolthub/dolt
+          
+      - name: download dependencies
+        run: |
+          cd dolthub/dolt/go
+          go mod tidy
+          go mod download
+
+      - name: set environment variables
+        id: variables
+        run: |
+          ldflags="\
+            -buildid= \
+            -w -s \
+          echo "ldflags=$ldflags" >> $GITHUB_ENV
+            
+      - name: build application
+        id: build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd dolthub/dolt/go
+          go build -v -trimpath -ldflags "--extldflags ${{ env.ldflags }}" -o release/dolt
+          upx --lzma release/dolt
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: upload binaries to artifact
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }} # 你的 GITHUB_TOKEN 用于将版本上传到 Github Release。
-          goos: ${{ matrix.goos }} # 运行程序的操作系统
-          goarch: ${{ matrix.goarch }} # 运行程序的架构
-          goversion: ${{ env.GO_VERSION }} # Go 编译环境版本
-          project_path: "go/cmd/dolt" # 在哪里运行 go build 命令。
-          binary_name: "${{ env.BINARY }}" # 二进制名称
-          build_flags: "-trimpath" # 传递给 go build 命令的其他参数
-          ldflags: "-extldflags -s -w -buildid=" # ldflags参数
-          md5sum: "false"
-          release_tag: "${{ env.APP_NAME }}-${{ env.VERSION }}" # 上传的标签
-          release_name: "${{ env.APP_NAME }}-${{ env.VERSION }}" # 上传的名字
-          compress_assets: "auto" # 自定义打包
-          overwrite: true # 覆盖
-          asset_name: "${{ env.BINARY }}-${{ matrix.goos }}-${{ matrix.goarch }}" # 自定义名称
-  
+          name: dolt-${{ matrix.goos }}-${{ matrix.goarch }}-${{ env.VERSION }}
+          path: dolthub/dolt/go/release/
+          
+      - name: prepare release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        run: |
+          cd dolthub/dolt/go/release
+          tar czf dolt-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz dolt
+          rm alist
+
+      - name: upload binaries to release
+        id: release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: dolthub/dolt/go/release/*
+          file_glob: true
+          tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          overwrite: true
+          body: ${{ env.COMMIT }}
+ 
   
   update-repo:
     needs:
