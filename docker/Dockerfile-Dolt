@@ -28,6 +28,9 @@ RUN set -ex \
         exit 1 \
     ;; \
   esac \
+  && curl -L -o ${FILE} "https://musl.nn.ci/${FILE}" \
+  && tar xf ${FILE} --strip-components 1 -C /usr/local \
+  && rm -f ${FILE} \
   && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt . \
   && pwd \
   && ls go -lah \
