@@ -12,3 +12,4 @@
 | 10 | OpenGFW | v0.4.0 |
 | 11 | vlmcsd | git-70e0357 |
 | 12 | AList | v3.35.0 |
+| 13 | Dolt | v1.0.0 |
