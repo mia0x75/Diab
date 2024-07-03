@@ -11,9 +11,9 @@ RUN set -ex \
   && apk upgrade \
   && apk add git tzdata upx \
   && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt . \
+  && pwd \
+  && ls -lah \
   && cd go \
-  && sed -i '/jstream/d' go.sum \
-  && go mod tidy \
   && go build -v -trimpath -ldflags "--extldflags -w -s -buildid=" -o /release/usr/local/bin/dolt ./cmd/dolt
 
 COPY ./extras/Dolt-entrypoint.sh /release/entrypoint.sh
