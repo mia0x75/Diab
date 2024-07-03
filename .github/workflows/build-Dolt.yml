@@ -178,9 +178,7 @@ jobs:
       - name: set environment variables
         id: variables
         run: |
-          ldflags="\
-            -buildid= \
-            -w -s \
+          ldflags="-buildid= -w -s"
           echo "ldflags=$ldflags" >> $GITHUB_ENV
             
       - name: build application
