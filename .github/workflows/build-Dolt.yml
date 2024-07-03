@@ -188,6 +188,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           cd dolthub/dolt/go
+          sed -i '/jstream/d' go.sum
+          go mod tidy
           go build -v -trimpath -ldflags "--extldflags ${{ env.ldflags }}" -o release/dolt ./cmd/dolt
           upx --lzma release/dolt
           echo "status=success" >> $GITHUB_OUTPUT
