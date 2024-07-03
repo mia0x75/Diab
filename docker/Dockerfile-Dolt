@@ -30,9 +30,9 @@ RUN set -ex \
   esac \
   && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt . \
   && pwd \
-  && ls -lah \
+  && ls go -lah \
   && cd go \
-  && go build -v -trimpath -ldflags "--extldflags -w -s -buildid=" -o /release/usr/local/bin/dolt ./cmd/dolt
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' -w -s" -o /release/usr/local/bin/dolt ./cmd/dolt
 
 COPY ./extras/Dolt-entrypoint.sh /release/entrypoint.sh
 RUN chmod +x /release/entrypoint.sh
