@@ -1,0 +1,25 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/ginuerzh/gost
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git build-base make tzdata upx \
+  && git clone -b $BRANCH --single-branch https://github.com/ginuerzh/gost /go/src/github.com/ginuerzh/gost \
+  && go build -v -o /release/gost . \
+  && upx --lzma /release/gost
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+RUN set -ex \
+  && apk upgrade \
+  && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+ENV TZ=Asia/Shanghai
+COPY --from=builder /release/gost /app
+ENTRYPOINT ["/app/gost"]

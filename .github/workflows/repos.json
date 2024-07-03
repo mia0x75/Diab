@@ -89,5 +89,12 @@
     "type": 1,
     "pattern": "",
     "version": "v1.41.2"
+  },
+  {
+    "owner": "ginuerzh",
+    "repo": "gost",
+    "type": 1,
+    "pattern": "",
+    "version": "v2.11.4"
   }
 ]
