@@ -134,7 +134,6 @@ jobs:
   build-releases:
     needs: check-version
     runs-on: ubuntu-latest
-    working-directory: ./dolt/go
     name: build releases
     env:
       CGO_ENABLED: 0
@@ -168,7 +167,7 @@ jobs:
           goos: ${{ matrix.goos }} # 运行程序的操作系统
           goarch: ${{ matrix.goarch }} # 运行程序的架构
           goversion: ${{ env.GO_VERSION }} # Go 编译环境版本
-          project_path: "./cmd/dolt" # 在哪里运行 go build 命令。
+          project_path: "go/cmd/dolt" # 在哪里运行 go build 命令。
           binary_name: "${{ env.BINARY }}" # 二进制名称
           build_flags: "-trimpath" # 传递给 go build 命令的其他参数
           ldflags: "-extldflags -s -w -buildid=" # ldflags参数
