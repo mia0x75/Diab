@@ -182,12 +182,6 @@ jobs:
         run: |
           git clone https://github.com/dolthub/dolt dolthub/dolt
           
-      - name: download dependencies
-        run: |
-          cd dolthub/dolt/go
-          go mod tidy
-          go mod download
-
       - name: set environment variables
         id: variables
         run: |
