@@ -11,7 +11,7 @@ RUN set -ex \
   && apk upgrade \
   && apk add git build-base make tzdata upx \
   && git clone -b $BRANCH --single-branch https://github.com/ginuerzh/gost /go/src/github.com/ginuerzh/gost \
-  && go build -v -o /release/gost . \
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' -w -s" -o /release/gost . \
   && upx --lzma /release/gost
 
 FROM --platform=$TARGETPLATFORM alpine AS dist
