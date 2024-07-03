@@ -218,7 +218,7 @@ jobs:
         run: |
           cd dolthub/dolt/go/release
           tar czf dolt-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz dolt
-          rm alist
+          rm dolt
 
       - name: upload binaries to release
         id: release
