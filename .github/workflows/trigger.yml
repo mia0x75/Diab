@@ -1,0 +1,106 @@
+name: "trigger"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+jobs:
+  check-repos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+
+      - name: set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: check for new releases
+        id: check-releases
+        run: |
+          repos=$(cat .github/workflows/repos.json  | jq -c '.[]')
+          
+          for repo in $repos; do
+            owner=$(echo $repo | jq -r '.owner')
+            name=$(echo $repo | jq -r '.repo')
+            alias=$(echo $repo | jq -r '.alias')
+            pattern=$(echo $repo | jq -r '.pattern')
+            type=$(echo $repo | jq -r '.type')
+            current=$(echo $repo | jq -r '.version')
+                        
+            case ${type} in 
+              1) url="https://api.github.com/repos/${owner}/${name}/releases"
+                key_name="tag_name"
+                ;;
+              2) url="https://api.github.com/repos/${owner}/${name}/tags"
+                key_name="name"
+                ;;
+              3) url="https://api.github.com/repos/${owner}/${name}/commits?per_page=2"
+                key_name="sha"
+                ;;
+              *)
+                exit 1 # Command to come out of the program with status 1
+                ;; 
+            esac
+
+            list=$(wget -qO- --tries=3 $url | jq -r ".[].$key_name")
+            latest=$(grep -vm1 '-' <<< "$list")
+            if [ "$pattern" != "" ]; then
+              latest=$(echo "$latest" | sed "$pattern")
+            fi
+
+            if [ "${type}" = "3" ]; then
+              latest=$(echo $latest | head -c 7)
+            fi
+
+            echo -e "url:             $url\nrepo:            $owner/$name\ntype:            $type\ncurrent version: $current\nlatest version:  $latest\n--------------------------------------------------------------------------------"
+
+            if [ "$latest" = "" ]; then
+              continue
+            fi
+
+            if [ "$latest" != "$current" ]; then
+              echo "owner=${owner}" >> $GITHUB_OUTPUT
+              echo "repo=${name}" >> $GITHUB_OUTPUT
+              echo "alias=${alias}" >> $GITHUB_OUTPUT
+              echo "latest=${latest}" >> $GITHUB_OUTPUT
+              echo "current=${current}" >> $GITHUB_OUTPUT
+              if [ "${alias}" != "" ]; then
+                eventType="Auto Build ${alias}"
+              else
+                eventType="Auto Build ${name}"
+              fi
+              echo "eventType=${eventType}" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+
+      - name: trigger build
+        if: steps.check-releases.outputs.owner != ''
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PAT }}
+          event-type: "${{ steps.check-releases.outputs.eventType }}"
+          client-payload: >
+            {
+              "owner": "${{ steps.check-releases.outputs.owner }}",
+              "repo": "${{ steps.check-releases.outputs.repo }}",
+              "version": "${{ steps.check-releases.outputs.version }}",
+              "current_version": "${{ steps.check-releases.outputs.current_version }}"
+            }
+
+  housekeep:
+    needs: check-repos
+    runs-on: ubuntu-latest
+    steps:
+      - name: delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.PAT }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: "trigger"
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_run_by_conclusion_pattern: "cancelled, skipped, success"
