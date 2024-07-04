@@ -1,0 +1,68 @@
+# Log connections with specific keywords in SNI
+- name: log horny people
+  log: true
+  expr: let sni = string(tls?.req?.sni); sni contains "porn" || sni contains "hentai"
+
+# Block HTTP/HTTPS/QUIC connections to v2ex.com
+- name: block v2ex http
+  action: block
+  expr: string(http?.req?.headers?.host) endsWith "v2ex.com"
+
+- name: block v2ex https
+  action: block
+  expr: string(tls?.req?.sni) endsWith "v2ex.com"
+
+- name: block v2ex quic
+  action: block
+  expr: string(quic?.req?.sni) endsWith "v2ex.com"
+
+# Block and log Shadowsocks, VMess, Trojan connections
+- name: block shadowsocks and vmess
+  action: block
+  log: true
+  expr: fet != nil && fet.yes
+
+- name: block trojan
+  action: block
+  log: true
+  expr: trojan != nil && trojan.yes
+
+# DNS poison v2ex.com to 0.0.0.0 and ::
+- name: v2ex dns poisoning
+  action: modify
+  modifier:
+    name: dns
+    args:
+      a: "0.0.0.0"
+      aaaa: "::"
+  expr: dns != nil && dns.qr && any(dns.questions, {.name endsWith "v2ex.com"})
+
+# Block SOCKS proxy access to google.com:80
+- name: block google socks
+  action: block
+  expr: string(socks?.req?.addr) endsWith "google.com" && socks?.req?.port == 80
+
+# Block WireGuard by handshake response
+- name: block wireguard by handshake response
+  action: drop
+  expr: wireguard?.handshake_response?.receiver_index_matched == true
+
+# Block all bilibili domains using GeoSite
+- name: block bilibili geosite
+  action: block
+  expr: geosite(string(tls?.req?.sni), "bilibili")
+
+# Block all connections to China using GeoIP
+- name: block CN geoip
+  action: block
+  expr: geoip(string(ip.dst), "cn")
+
+# Block all connections to a specific CIDR range
+- name: block cidr
+  action: block
+  expr: cidr(string(ip.dst), "192.168.0.0/16")
+
+# Block Xray Reality/ShadowTLS connections
+- name: SNI mismatch
+  action: block
+  expr: tls?.req?.sni != nil && ip.dst not in concat(lookup(tls.req.sni), lookup(tls.req.sni, "1.1.1.1:53"), lookup(tls.req.sni, "8.8.8.8:53"))
