@@ -139,7 +139,7 @@ jobs:
       CGO_ENABLED: 0
       BINARY: gost
       VERSION: ${{ needs.check-version.outputs.version }}
-      GO_VERSION: ${{ needs.check-version.outputs.go_version }}
+      GO_VERSION: '1.19'
       BUILD_DATE: ${{ needs.check-version.outputs.build_date }}
 
     strategy:
