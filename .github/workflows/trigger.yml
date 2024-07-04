@@ -27,7 +27,7 @@ jobs:
             name=$(echo $repo | jq -r '.repo')
             pattern=$(echo $repo | jq -r '.pattern')
             type=$(echo $repo | jq -r '.type')
-            current_version=$(echo $repo | jq -r '.version')
+            current=$(echo $repo | jq -r '.version')
                         
             case ${type} in 
               1) url="https://api.github.com/repos/${owner}/${name}/releases"
@@ -44,23 +44,27 @@ jobs:
                 ;; 
             esac
 
-            releases=$(wget -qO- --tries=3 $url | jq -r ".[].$key_name")
-            latest_version=$(grep -vm1 '-' <<< "$releases")
+            list=$(wget -qO- --tries=3 $url | jq -r ".[].$key_name")
+            latest=$(grep -vm1 '-' <<< "$list")
             if [ "$pattern" != "" ]; then
-              latest_version=$(echo "$latest_version" | sed "$pattern")
+              latest=$(echo "$latest" | sed "$pattern")
             fi
 
             if [ "${type}" = "3" ]; then
-              latest_version=$(echo $latest_version | head -c 7)
+              latest=$(echo $latest | head -c 7)
             fi
 
-            echo -e "url:             $url\nrepo:            $owner/$name\ntype:            $type\ncurrent version: $current_version\nlatest version:  $latest_version\n--------------------------------------------------------------------------------"
+            echo -e "url:             $url\nrepo:            $owner/$name\ntype:            $type\ncurrent version: $current\nlatest version:  $latest\n--------------------------------------------------------------------------------"
 
-            if [ "$latest_version" != "$current_version" ]; then
+            if [ "$latest" = "" ]; then
+              continue
+            fi
+
+            if [ "$latest" != "$current" ]; then
               echo "owner=${owner}" >> $GITHUB_OUTPUT
               echo "repo=${name}" >> $GITHUB_OUTPUT
-              echo "version=${latest_version}" >> $GITHUB_OUTPUT
-              echo "current_version=${current_version}" >> $GITHUB_OUTPUT
+              echo "latest=${latest}" >> $GITHUB_OUTPUT
+              echo "current=${current}" >> $GITHUB_OUTPUT
               exit 0
             fi
           done
