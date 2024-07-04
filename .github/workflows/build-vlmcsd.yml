@@ -52,7 +52,7 @@ jobs:
           hash=$(grep -vm1 '-' <<< "$releases")
           shorthash=$(echo $hash | head -c 7)
           DATE=$(date "+%Y/%m/%d")
-          COMMIT="Build to ${{ env.APP_NAME }} $MAIN_NEXT_NEW by Github Actions, $DATE"
+          COMMIT="Build ${{ env.APP_NAME }} $shorthash by Github Actions, $DATE"
 
           echo "version=${shorthash}" >> $GITHUB_OUTPUT
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT

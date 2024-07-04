@@ -60,7 +60,7 @@ jobs:
 
           GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | awk 'NR==1' | sed 's/^go//')
           DATE=$(date "+%Y/%m/%d")
-          COMMIT="Build to ${{ env.APP_NAME }} v$VERSION by Github Actions, $DATE"
+          COMMIT="Build ${{ env.APP_NAME }} v$VERSION by Github Actions, $DATE"
 
           echo "go_version=$GO_VERSION" >> $GITHUB_OUTPUT
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT
