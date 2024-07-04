@@ -1,0 +1,270 @@
+name: "Auto Build overtls"
+
+env:
+  DOCKER_REPO: 'overtls'
+  GITHUB_REPO: 'shadowsocksr-live/overtls'
+  DOCKER_FILE: 'Dockerfile-overtls'
+  APP_NAME: 'overtls'
+  
+on:
+  repository_dispatch:
+    types: [Auto Build overtls]
+
+permissions:
+  contents: write
+  packages: write
+  actions: write
+
+jobs:
+  process-dispatch:
+    runs-on: ubuntu-latest
+    name: "process dispatch"
+    outputs:
+      status: ${{ steps.check-repo-dispatch.outputs.status }}
+    steps:
+      - name: check-repo-dispatch
+        run: |
+          if [ "${{ env.GITHUB_REPO }}" = "${{ github.event.client_payload.owner }}/${{ github.event.client_payload.repo }}" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
+          
+  check-version:
+    needs: process-dispatch
+    if: ${{ needs.process-dispatch.outputs.status }} == 'success'
+    runs-on: ubuntu-latest
+    name: "check version"
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      commit: ${{ steps.get-version.outputs.commit }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: check version
+        id: get-version
+        run: |
+          LIST=$(wget -qO- --tries=3 "https://api.github.com/repos/shadowsocksr-live/overtls/releases" | awk -F '"' '/tag_name/{print $(NF-1)}')
+          LATEST_RELEASE=$(grep -vm1 '-' <<< "$LIST")
+          DATE=$(date "+%Y/%m/%d")
+          COMMIT="Build ${{ env.APP_NAME }} $LATEST_RELEASE by Github Actions, $DATE"
+
+          echo "version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+
+
+  create-release:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: "create release"
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      MSG: ${{ needs.check-version.outputs.commit }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: create release
+        uses: shogo82148/actions-create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          release_name: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          body: ${{ env.MSG }}
+          draft: false
+          prerelease: false
+          overwrite: true
+
+
+  build-docker-image:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: "build docker image"
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      VERSION: ${{ needs.check-version.outputs.version }}
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: login to dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: push images to dockerhub
+        env:
+          DOCKERHUB_REPOSITORY: ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_REPO }}
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          file: docker/${{ env.DOCKER_FILE }}
+          platforms: linux/amd64, linux/arm64
+          build-args: BRANCH=${{ env.VERSION }}
+          tags: |
+            ${{ env.DOCKERHUB_REPOSITORY }}:latest
+            ${{ env.DOCKERHUB_REPOSITORY }}:${{ env.VERSION }}
+
+
+  build-releases:
+    needs: check-version
+    name: build releases
+    env:
+      BINARY: overtls
+      VERSION: ${{ needs.check-version.outputs.version }}
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+
+        include:
+          - target: x86_64-unknown-linux-gnu
+            host_os: ubuntu-latest
+            artifact_name: overtls-linux-amd64.zip
+          - target: aarch64-unknown-linux-gnu
+            host_os: ubuntu-latest
+            artifact_name: overtls-linux-arm64.zip
+
+    runs-on: ${{ matrix.host_os }}
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: prepare
+        shell: bash
+        run: |
+          set -e  # 若有命令失败，则退出并报错
+          mkdir -p release
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/cross-rs/cross/releases/latest \
+            | grep browser_download_url \
+            | grep cross-x86_64-unknown-linux-gnu.tar.gz \
+            | cut -d '"' -f 4)
+          if [[ -z "$DOWNLOAD_URL" ]]; then
+            echo "Failed to find the download URL for cross-x86_64-unknown-linux-gnu.tar.gz"
+            exit 1
+          fi
+          wget "$DOWNLOAD_URL" -O cross-x86_64-unknown-linux-gnu.tar.gz
+          if [[ $? -ne 0 ]]; then
+            echo "Failed to download cross-x86_64-unknown-linux-gnu.tar.gz"
+            exit 1
+          fi
+          sudo tar -zxvf cross-x86_64-unknown-linux-gnu.tar.gz -C /usr/bin
+          rm -f cross-x86_64-unknown-linux-gnu.tar.gz
+          rustup target add ${{ matrix.target }}
+          cargo install cbindgen
+
+      - name: clone repository
+        uses: actions/checkout@v4
+        with:
+          repository: "shadowsocksr-live/overtls"
+          ref: "${{ env.VERSION }}"
+          fetch-depth: 1
+
+      - name: build releases
+        run: |
+          if [[ "${{ matrix.host_os }}" == "ubuntu-latest" ]]; then
+            cross build --all-features --release --target ${{ matrix.target }}
+          else
+            cargo build --all-features --release --target ${{ matrix.target }}
+          fi
+          cbindgen -c cbindgen.toml -l C --cpp-compat -o ./overtls.h
+          mkdir release
+          ls -lah
+          upx -V
+          zip -j release/${{ matrix.artifact_name }} target/${{ matrix.target }}/release/overtls ./config.json ./overtls.h target/${{ matrix.target }}/release/libovertls.so
+
+      - name: upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release/${{ matrix.artifact_name }}
+          
+      - name: upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          # A personal access token for the GitHub repository in which the release will be created and edited.
+          # It is recommended to create the access token with the following scopes: `repo, user, admin:repo_hook`.
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.artifact_name }}
+          tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          overwrite: true
+          body: ${{ env.VERSION }}
+        
+
+  update-repo:
+    needs:
+      - check-version
+      - create-release
+      - build-docker-image
+      - build-releases
+    runs-on: ubuntu-latest
+    name: "update repo"
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      COMMIT: ${{ needs.check-version.outputs.commit }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      - name: mark
+        run: |
+          sudo apt-get install -y jq
+          
+          git checkout --orphan tmp_work
+          git branch -d main
+
+          sed -i -E 's/(\|\s*${{ env.APP_NAME }}\s*\|)\s*\S+\s*\|/\1 ${{ env.VERSION }} \|/' README.md
+
+          # Update repos.json
+          IFS='/' read -r owner repo <<< "${{ env.GITHUB_REPO }}"
+          jq --arg owner "$owner" --arg repo "$repo" --arg new_version "${{ env.VERSION }}" \
+              'map(if .owner == $owner and .repo == $repo then .version = $new_version else . end)' \
+              .github/workflows/repos.json > update_repos.json
+          mv update_repos.json .github/workflows/repos.json
+
+      - name: upload to repository
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: ${{ env.COMMIT }}
+          create_branch: true
+          branch: main
+          push_options: --force
+
+      - name: delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: "${{ env.APP_NAME }}"
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_run_by_conclusion_pattern: "cancelled, skipped, success"
