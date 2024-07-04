@@ -13,7 +13,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v0.13.1"
+    "version": "v0.12.1"
   },
   {
     "owner": "jeessy2",
@@ -21,7 +21,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v6.6.3"
+    "version": "v6.6.2"
   },
   {
     "owner": "apernet",
@@ -29,7 +29,7 @@
     "alias": "",
     "type": 1,
     "pattern": "s/^\\w\\+\\///g",
-    "version": "v2.5.0"
+    "version": "v2.4.0"
   },
   {
     "owner": "tindy2013",
@@ -37,7 +37,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v0.9.0"
+    "version": "v0.8.0"
   },
   {
     "owner": "shadowsocksr-live",
@@ -45,7 +45,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v0.2.31"
+    "version": "v0.2.30"
   },
   {
     "owner": "cedar2025",
@@ -53,7 +53,7 @@
     "alias": "",
     "type": 2,
     "pattern": "",
-    "version": "v0.1.9"
+    "version": "v0.1.8"
   },
   {
     "owner": "pymumu",
@@ -61,7 +61,7 @@
     "alias": "",
     "type": 1,
     "pattern": "s/Release/v/g",
-    "version": "v46"
+    "version": "v45"
   },
   {
     "owner": "XIU2",
@@ -69,7 +69,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v2.2.5"
+    "version": "v2.2.4"
   },
   {
     "owner": "apernet",
@@ -77,7 +77,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v0.4.0"
+    "version": "v0.3.0"
   },
   {
     "owner": "Wind4",
@@ -85,7 +85,7 @@
     "alias": "",
     "type": 3,
     "pattern": "",
-    "version": "70e0357"
+    "version": "70e0356"
   },
   {
     "owner": "alist-org",
@@ -93,7 +93,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v3.35.0"
+    "version": "v3.34.0"
   },
   {
     "owner": "dolthub",
