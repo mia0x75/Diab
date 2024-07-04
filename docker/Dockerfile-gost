@@ -15,7 +15,7 @@ RUN set -ex \
   && go build --ldflags="-s -w" -v -x -a -o gost cmd/gost/*.go \
   && mkdir /release \
   && mv gost /release \
-  && upx --best /release/gost
+  && upx --lzma /release/gost
 
 FROM --platform=$TARGETPLATFORM alpine AS dist
 RUN set -ex \
