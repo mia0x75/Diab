@@ -1,0 +1,73 @@
+FROM --platform=$BUILDPLATFORM rust:alpine AS builder
+
+# 设置工作目录
+WORKDIR /src/github.com/shadowsocksr-live/overtls
+
+# 定义构建时参数
+ARG TARGETOS TARGETARCH BRANCH
+
+# 安装必要的依赖包
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && case "$TARGETOS" in \
+      "linux") ;; \
+      *) echo "ERROR: Unsupported OS: ${TARGETOS}"; exit 1 ;; \
+  esac \
+  && case "$TARGETARCH" in \
+    "amd64") \
+        CARGO_TARGET="x86_64-unknown-linux-musl" \
+        MUSL="x86_64-linux-musl" \
+    ;; \
+    "arm64") \
+        CARGO_TARGET="aarch64-unknown-linux-musl" \
+        MUSL="aarch64-linux-musl" \
+    ;; \
+    *) \
+        echo "ERROR: Unsupported CPU architecture: ${TARGETARCH}"; \
+        exit 1 \
+    ;; \
+  esac \
+  && echo -e "Building overtls for ${CARGO_TARGET} ...\n" \
+  && apk add --no-cache git build-base upx ca-certificates bash openssl curl \
+  && cargo install cbindgen \
+  && wget -qO- "https://musl.cc/${MUSL}-cross.tgz" | tar -xzC /root/ \
+  && export PATH="/root/${MUSL}-cross/bin:${PATH}" \
+  && export CC="/root/${MUSL}-cross/bin/${MUSL}-gcc" \
+  && rustup target add ${CARGO_TARGET} \
+  && git clone -b $BRANCH --single-branch https://github.com/shadowsocksr-live/overtls . \
+  && RUSTFLAGS="-C linker=${CC}" CC=${CC} cargo build --release --all-features --target=${CARGO_TARGET} \
+  && cbindgen -c cbindgen.toml -l C --cpp-compat -o ./overtls.h \
+  && upx --lzma target/${CARGO_TARGET}/release/overtls \
+  && mkdir -p target/${TARGETPLATFORM} \
+  && cp target/${CARGO_TARGET}/release/overtls target/${TARGETPLATFORM} \
+  && ls -lah target/${CARGO_TARGET}/release/overtls \
+  && echo "_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/" \
+  && mkdir -p /build \
+  && cp target/${CARGO_TARGET}/release/overtls /build/ \
+  && cp config.json /build/
+
+# 创建最终镜像
+FROM --platform=$TARGETPLATFORM alpine AS dist
+
+# 安装运行时依赖包
+# bash is used for debugging, tzdata is used to add timezone information.
+# Install ca-certificates to ensure no CA certificate errors.
+#
+# Do not try to add the "--no-cache" option when there are multiple "apk"
+# commands, this will cause the build process to become very slow.
+RUN set -ex \
+  && apk upgrade \
+  && apk add bash tzdata ca-certificates \
+  && rm -rf /var/cache/apk/* \
+  && mkdir /app
+  
+# 从构建阶段复制生成的二进制文件
+COPY --from=builder /build/. /app
+
+# 设置环境变量
+ENV CONFIG=/app/config.json
+
+# 定义启动命令
+CMD ["/app/overtls", "-r", "server", "-c", "${CONFIG}"]
