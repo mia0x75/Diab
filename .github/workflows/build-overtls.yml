@@ -130,6 +130,7 @@ jobs:
     env:
       BINARY: overtls
       VERSION: ${{ needs.check-version.outputs.version }}
+      MSG: ${{ needs.check-version.outputs.commit }}
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
     strategy:
@@ -213,7 +214,7 @@ jobs:
           asset_name: ${{ matrix.artifact_name }}
           tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
           overwrite: true
-          body: ${{ env.VERSION }}
+          body: ${{ env.MSG }}
         
 
   update-repo:
