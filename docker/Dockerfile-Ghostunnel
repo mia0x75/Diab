@@ -19,7 +19,7 @@ FROM --platform=$TARGETPLATFORM alpine AS dist
 WORKDIR /app
 
 RUN apk add --no-cache --update libtool curl \
- && rm -rf /var/cache/apk/* \
+ && rm -rf /var/cache/apk/*
 
 COPY --from=builder /release/ghostunnel /app/ghostunnel
 
