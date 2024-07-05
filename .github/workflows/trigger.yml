@@ -51,9 +51,8 @@ jobs:
             if [ -n "$test" ]; then
               # 遍历 list 中的每一行
               while IFS= read -r element; do
-                if [[ $element =~ $regex ]]; then
+                if [[ $element =~ $test ]]; then
                   latest=$element
-                  echo "\n\n\n\n$element match $test.\n\n\n\n"
                   break
                 fi
               done <<< "$list"
