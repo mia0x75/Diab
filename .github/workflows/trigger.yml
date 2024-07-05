@@ -51,7 +51,7 @@ jobs:
             if [ -n "$test" ]; then
               # 遍历 list 中的每一行
               while IFS= read -r element; do
-                if [[ $element =~ $test ]]; then
+                if echo "$element" | grep -Eq "$test"; then
                   latest=$element
                   break
                 fi
