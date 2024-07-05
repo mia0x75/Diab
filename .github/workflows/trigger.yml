@@ -26,7 +26,8 @@ jobs:
             owner=$(echo $repo | jq -r '.owner')
             name=$(echo $repo | jq -r '.repo')
             alias=$(echo $repo | jq -r '.alias')
-            pattern=$(echo $repo | jq -r '.pattern')
+            test=$(echo $repo | jq -r '.test')
+            replace=$(echo $repo | jq -r '.replace')
             type=$(echo $repo | jq -r '.type')
             current=$(echo $repo | jq -r '.version')
                         
@@ -46,9 +47,19 @@ jobs:
             esac
 
             list=$(wget -qO- --tries=3 $url | jq -r ".[].$key_name")
-            latest=$(grep -vm1 '-' <<< "$list")
-            if [ "$pattern" != "" ]; then
-              latest=$(echo "$latest" | sed "$pattern")
+            if [ "$test" != "" ]; then
+              for element in "${list[@]}"; then
+                if [[ $element =~ $regex ]]; then
+                  latest=$element
+                  break
+                fi
+              done
+            else
+              latest=$(grep -vm1 '-' <<< "$list")
+            fi
+
+            if [ "$replace" != "" ]; then
+              latest=$(echo "$latest" | sed "$replace")
             fi
 
             if [ "${type}" = "3" ]; then

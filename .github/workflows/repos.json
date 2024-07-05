@@ -4,7 +4,8 @@
     "repo": "sing-box",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v1.9.3"
   },
   {
@@ -12,7 +13,8 @@
     "repo": "clash2sfa",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v0.13.1"
   },
   {
@@ -20,7 +22,8 @@
     "repo": "ddns-go",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v6.6.3"
   },
   {
@@ -28,7 +31,8 @@
     "repo": "hysteria",
     "alias": "",
     "type": 1,
-    "pattern": "s/^\\w\\+\\///g",
+    "test": "",
+    "replace": "s/^\\w\\+\\///g",
     "version": "v2.5.0"
   },
   {
@@ -36,7 +40,8 @@
     "repo": "subconverter",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v0.9.0"
   },
   {
@@ -44,7 +49,8 @@
     "repo": "overtls",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v0.2.31"
   },
   {
@@ -52,7 +58,8 @@
     "repo": "xboard",
     "alias": "",
     "type": 2,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v0.1.9"
   },
   {
@@ -60,7 +67,8 @@
     "repo": "smartdns",
     "alias": "",
     "type": 1,
-    "pattern": "s/Release/v/g",
+    "test": "",
+    "replace": "s/Release/v/g",
     "version": "v46"
   },
   {
@@ -68,7 +76,8 @@
     "repo": "CloudflareSpeedTest",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v2.2.5"
   },
   {
@@ -76,7 +85,8 @@
     "repo": "OpenGFW",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v0.4.0"
   },
   {
@@ -84,7 +94,8 @@
     "repo": "vlmcsd",
     "alias": "",
     "type": 3,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "70e0357"
   },
   {
@@ -92,7 +103,8 @@
     "repo": "alist",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v3.35.0"
   },
   {
@@ -100,7 +112,8 @@
     "repo": "dolt",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v1.41.3"
   },
   {
@@ -108,7 +121,8 @@
     "repo": "gost",
     "alias": "",
     "type": 3,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "4a2a2a0"
   },
   {
@@ -116,7 +130,8 @@
     "repo": "server",
     "alias": "gotify",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v2.5.0"
   },
   {
@@ -124,7 +139,8 @@
     "repo": "sftpgo",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "",
+    "replace": "",
     "version": "v2.6.2"
   },
   {
@@ -132,7 +148,8 @@
     "repo": "dae",
     "alias": "",
     "type": 1,
-    "pattern": "",
+    "test": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+    "replace": "",
     "version": "v1.0.0"
   }
 ]
