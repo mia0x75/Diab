@@ -12,7 +12,7 @@ RUN set -ex \
   && apk update \
   && apk upgrade \
   && apk add --no-cache git upx llvm15 clang15 make \
-  && ln -s /usr/bin/clang15 /usr/bin/clang \  # 创建 clang 的符号链接
+  && ln -s /usr/bin/clang15 /usr/bin/clang \
   && git clone -b $BRANCH --single-branch https://github.com/daeuniverse/dae /go/src/github.com/daeuniverse/dae \
   && git submodule update --init \
   && make OUTPUT=dae GOFLAGS="-buildvcs=false" CC=clang CGO_ENABLED=0 \

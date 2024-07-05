@@ -49,8 +49,14 @@ jobs:
             list=$(wget -qO- --tries=3 $url | jq -r ".[].$key_name")
             # 检查 test 变量
             if [ -n "$test" ]; then
+              echo -e "\n\n\n\n------------------------------------------------------"
+              echo $test
+              echo -e "------------------------------------------------------\n\n\n\n"
               # 遍历 list 中的每一行
               while IFS= read -r element; do
+                echo -e "\n\n\n\n------------------------------------------------------"
+                echo $element
+                echo -e "------------------------------------------------------\n\n\n\n"
                 if [[ $element =~ $regex ]]; then
                   latest=$element
                   break
