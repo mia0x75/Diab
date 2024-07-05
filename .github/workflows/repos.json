@@ -151,5 +151,14 @@
     "test": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
     "replace": "",
     "version": "v0.6.0"
+  },
+  {
+    "owner": "ghostunnel",
+    "repo": "ghostunnel",
+    "alias": "Ghostunnel",
+    "type": 1,
+    "test": "",
+    "replace": "s/Version /v/g",
+    "version": "v0.6.0"
   }
 ]
