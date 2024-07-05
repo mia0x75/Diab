@@ -12,6 +12,7 @@ RUN set -ex \
   && apk update \
   && apk upgrade \
   && apk add --no-cache git upx llvm15 clang15 make \
+  && ln -s /usr/bin/clang15 /usr/bin/clang \  # 创建 clang 的符号链接
   && git clone -b $BRANCH --single-branch https://github.com/daeuniverse/dae /go/src/github.com/daeuniverse/dae \
   && git submodule update --init \
   && make OUTPUT=dae GOFLAGS="-buildvcs=false" CC=clang CGO_ENABLED=0 \
@@ -20,7 +21,7 @@ RUN set -ex \
   && mv dae /release/usr/local/bin/ \
   && wget -O /release/usr/local/share/dae/geoip.dat https://github.com/v2fly/geoip/releases/latest/download/geoip.dat \
   && wget -O /release/usr/local/share/dae/geosite.dat https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat \
-  && install/empty.dae /release/etc/dae/config.dae \
+  && cp install/empty.dae /release/etc/dae/config.dae \
   && chmod 0600 /release/etc/dae/config.dae
 
 FROM --platform=$BUILDPLATFORM alpine
