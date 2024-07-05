@@ -18,3 +18,4 @@
 | 16 | SFTPGo | v2.6.2 |
 | 17 | dae | v0.6.0 |
 | 18 | Ghostunnel | v1.8.0 |
+| 19 | Proxify | v0.0.13 |
