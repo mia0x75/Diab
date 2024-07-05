@@ -47,18 +47,22 @@ jobs:
             esac
 
             list=$(wget -qO- --tries=3 $url | jq -r ".[].$key_name")
-            if [ "$test" != "" ]; then
-              for element in "${list[@]}"; then
+            # 检查 test 变量
+            if [ -n "$test" ]; then
+              # 遍历 list 中的每一行
+              while IFS= read -r element; do
                 if [[ $element =~ $regex ]]; then
                   latest=$element
                   break
                 fi
-              done
+              done <<< "$list"
             else
+              # 使用 grep 查找第一个不包含 '-' 的行
               latest=$(grep -vm1 '-' <<< "$list")
             fi
 
-            if [ "$replace" != "" ]; then
+            # 检查 replace 变量并使用 sed 替换
+            if [ -n "$replace" ]; then
               latest=$(echo "$latest" | sed "$replace")
             fi
 
