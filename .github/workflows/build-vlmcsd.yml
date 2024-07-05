@@ -52,7 +52,7 @@ jobs:
           hash=$(grep -vm1 '-' <<< "$releases")
           shorthash=$(echo $hash | head -c 7)
           DATE=$(date "+%Y/%m/%d")
-          COMMIT="Build ${{ env.APP_NAME }} $shorthash by Github Actions, $DATE"
+          COMMIT="Build ${{ env.APP_NAME }} git-$shorthash by Github Actions, $DATE"
 
           echo "version=${shorthash}" >> $GITHUB_OUTPUT
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT
@@ -130,6 +130,7 @@ jobs:
     env:
       BINARY: vlmcsd
       VERSION: ${{ needs.check-version.outputs.version }}
+      MSG: ${{ needs.check-version.outputs.commit }}
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       CC_AMD64: gcc
       CC_ARM64: aarch64-linux-gnu-gcc
@@ -193,7 +194,7 @@ jobs:
           asset_name: ${{ matrix.artifact_name }}
           tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
           overwrite: true
-          body: ${{ env.VERSION }}
+          body: ${{ env.MSG }}
           
   
   update-repo:
