@@ -170,8 +170,35 @@ jobs:
         env:
           CLANG: clang-15
         run: |
-          make OUTPUT=dae GOFLAGS="-buildvcs=false" CC=clang CGO_ENABLED=0
-  
+          make OUTPUT=release/dae GOFLAGS="-buildvcs=false" CC=clang CGO_ENABLED=0
+          upx --lzma release/${{ env.BINARY }}
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: upload binaries to artifact
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY }}-${{ matrix.goos }}-${{ matrix.goarch }}-${{ env.VERSION }}
+          path: release/
+          
+      - name: prepare release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        run: |
+          cd release
+          tar czf ${{ env.BINARY }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz ${{ env.BINARY }}
+          rm ${{ env.BINARY }}
+
+      - name: upload binaries to release
+        id: release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: release/*
+          file_glob: true
+          tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          overwrite: true
+          body: ${{ env.COMMIT }}
+
   
   update-repo:
     needs:

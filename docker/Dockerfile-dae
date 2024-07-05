@@ -13,8 +13,11 @@ RUN set -ex \
   && apk upgrade \
   && apk add --no-cache git upx llvm15 clang15 make \
   && ln -s /usr/bin/clang15 /usr/bin/clang \
+  && which clang \
+  && clang --version \
   && git clone -b $BRANCH --single-branch https://github.com/daeuniverse/dae /go/src/github.com/daeuniverse/dae \
   && git submodule update --init \
+  && export CLANG=clang-15 \
   && make OUTPUT=dae GOFLAGS="-buildvcs=false" CC=clang CGO_ENABLED=0 \
   && upx --lzma dae \
   && mkdir -p /release/usr/local/bin /etc/dae /usr/local/share/dae \
