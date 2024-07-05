@@ -1,8 +1,8 @@
-name: "Auto Build ghostunnel"
+name: "Auto Build Ghostunnel"
 
 on:
   repository_dispatch:
-    types: [Auto Build ghostunnel]
+    types: [Auto Build Ghostunnel]
     
 env:
   DOCKER_REPO: 'ghostunnel'
