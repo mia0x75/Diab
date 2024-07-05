@@ -17,3 +17,4 @@
 | 15 | gotify | v2.5.0 |
 | 16 | SFTPGo | v2.6.2 |
 | 17 | dae | v0.6.0 |
+| 18 | Ghostunnel | v1.0.0 |
