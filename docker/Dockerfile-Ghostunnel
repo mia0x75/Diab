@@ -1,0 +1,26 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/ghostunnel/ghostunnel
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git upx \
+  && git clone -b $BRANCH --single-branch https://github.com/ghostunnel/ghostunnel /go/src/github.com/ghostunnel/ghostunnel \
+  && go build -v -trimpath -ldflags "-X \"main.version=${BRANCH}\" -s -w -buildid=" -o /release/ghostunnel \
+  && upx --lzma /release/ghostunnel
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+
+WORKDIR /app
+
+RUN apk add --no-cache --update libtool curl \
+ && rm -rf /var/cache/apk/*
+
+COPY --from=builder /release/ghostunnel /app/ghostunnel
+
+ENTRYPOINT ["/app/ghostunnel"]

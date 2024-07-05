@@ -1,0 +1,173 @@
+[
+  {
+    "owner": "SagerNet",
+    "repo": "sing-box",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v1.9.3"
+  },
+  {
+    "owner": "xmdhs",
+    "repo": "clash2sfa",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v0.13.1"
+  },
+  {
+    "owner": "jeessy2",
+    "repo": "ddns-go",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v6.6.3"
+  },
+  {
+    "owner": "apernet",
+    "repo": "hysteria",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "s/^\\w\\+\\///g",
+    "version": "v2.5.0"
+  },
+  {
+    "owner": "tindy2013",
+    "repo": "subconverter",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v0.9.0"
+  },
+  {
+    "owner": "shadowsocksr-live",
+    "repo": "overtls",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v0.2.31"
+  },
+  {
+    "owner": "cedar2025",
+    "repo": "xboard",
+    "alias": "",
+    "type": 2,
+    "test": "",
+    "replace": "",
+    "version": "v0.1.9"
+  },
+  {
+    "owner": "pymumu",
+    "repo": "smartdns",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "s/Release/v/g",
+    "version": "v46"
+  },
+  {
+    "owner": "XIU2",
+    "repo": "CloudflareSpeedTest",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v2.2.5"
+  },
+  {
+    "owner": "apernet",
+    "repo": "OpenGFW",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v0.4.0"
+  },
+  {
+    "owner": "Wind4",
+    "repo": "vlmcsd",
+    "alias": "",
+    "type": 3,
+    "test": "",
+    "replace": "",
+    "version": "70e0357"
+  },
+  {
+    "owner": "alist-org",
+    "repo": "alist",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v3.35.0"
+  },
+  {
+    "owner": "dolthub",
+    "repo": "dolt",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v1.41.3"
+  },
+  {
+    "owner": "go-gost",
+    "repo": "gost",
+    "alias": "",
+    "type": 3,
+    "test": "",
+    "replace": "",
+    "version": "4a2a2a0"
+  },
+  {
+    "owner": "gotify",
+    "repo": "server",
+    "alias": "gotify",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v2.5.0"
+  },
+  {
+    "owner": "drakkan",
+    "repo": "sftpgo",
+    "alias": "",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v2.6.2"
+  },
+  {
+    "owner": "daeuniverse",
+    "repo": "dae",
+    "alias": "",
+    "type": 1,
+    "test": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+    "replace": "",
+    "version": "v0.6.0"
+  },
+  {
+    "owner": "ghostunnel",
+    "repo": "ghostunnel",
+    "alias": "Ghostunnel",
+    "type": 2,
+    "test": "",
+    "replace": "",
+    "version": "v1.8.0"
+  },
+  {
+    "owner": "projectdiscovery",
+    "repo": "proxify",
+    "alias": "Proxify",
+    "type": 1,
+    "test": "",
+    "replace": "",
+    "version": "v0.0.15"
+  }
+]
