@@ -149,6 +149,7 @@ jobs:
       GO_VERSION: ${{ needs.check-version.outputs.go_version }}
       BUILD_DATE: ${{ needs.check-version.outputs.build_date }}
       TAG: ${{ needs.check-version.outputs.tag }}
+      MSG: ${{ needs.check-version.outputs.commit }}
 
     strategy:
       matrix:
@@ -259,7 +260,7 @@ jobs:
           file_glob: true
           tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
           overwrite: true
-          body: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          body: ${{ env.MSG }}
         
   
   update-repo:
