@@ -156,9 +156,9 @@
     "owner": "ghostunnel",
     "repo": "ghostunnel",
     "alias": "Ghostunnel",
-    "type": 1,
+    "type": 2,
     "test": "",
-    "replace": "s/Version /v/g",
+    "replace": "",
     "version": "v0.6.0"
   }
 ]
