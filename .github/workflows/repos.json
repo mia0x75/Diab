@@ -45,7 +45,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v0.2.31"
+    "version": "v0.2.21"
   },
   {
     "owner": "cedar2025",
@@ -85,7 +85,7 @@
     "alias": "",
     "type": 3,
     "pattern": "",
-    "version": "70e0357"
+    "version": "70e0356"
   },
   {
     "owner": "alist-org",
@@ -93,7 +93,7 @@
     "alias": "",
     "type": 1,
     "pattern": "",
-    "version": "v3.35.0"
+    "version": "v3.34.0"
   },
   {
     "owner": "dolthub",
