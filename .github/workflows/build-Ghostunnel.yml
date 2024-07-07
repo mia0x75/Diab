@@ -170,7 +170,7 @@ jobs:
           goversion: ${{ env.GO_VERSION }}                                            # Go 编译环境版本
           project_path: "."                                                           # 在哪里运行 go build 命令。
           binary_name: "${{ env.BINARY }}"                                            # 二进制名称
-          build_flags: "-trimpath -tags nopkcs11"                                     # 传递给 go build 命令的其他参数
+          build_flags: "-trimpath -tags !nopkcs11"                                    # 传递给 go build 命令的其他参数
           ldflags: "-X \"main.version=${{ env.VERSION }}\" -extldflags -static -s -w" # ldflags参数
           md5sum: "false"
           release_tag: "${{ env.APP_NAME }}-${{ env.VERSION }}"                       # 上传的标签
