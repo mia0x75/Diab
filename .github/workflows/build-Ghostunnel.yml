@@ -159,6 +159,10 @@ jobs:
           ref: "${{ env.VERSION }}"
           fetch-depth: 1
 
+      - name: debug
+        run: |
+          cat tls.go
+
       - name: build releases
         uses: mia0x75/go-release-action@master
         with:
