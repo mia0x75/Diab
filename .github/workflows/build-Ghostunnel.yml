@@ -178,26 +178,43 @@ jobs:
           sudo tar xf ${{ matrix.musl }} --strip-components 1 -C /usr/local
           rm -f ${{ matrix.musl }}
 
-      - name: build releases
-        uses: mia0x75/go-release-action@master
+      - name: build application
+        id: build
         env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
           CC: ${{ matrix.cc }}
+        run: |
+          cd ghostunnel/ghostunnel
+          go build -v -trimpath -tags !nopkcs11 -ldflags "--extldflags '-static -fpic' -w -s -buildid= " -X \"main.version=${{ env.VERSION }}\"" -o release/ghostunnel
+          upx --lzma release/ghostunnel
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: upload binaries to artifact
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}                                   # 你的 GITHUB_TOKEN 用于将版本上传到 Github Release。
-          goos: ${{ matrix.goos }}                                                    # 运行程序的操作系统
-          goarch: ${{ matrix.goarch }}                                                # 运行程序的架构
-          goversion: ${{ env.GO_VERSION }}                                            # Go 编译环境版本
-          project_path: "."                                                           # 在哪里运行 go build 命令。
-          binary_name: "${{ env.BINARY }}"                                            # 二进制名称
-          build_flags: "-trimpath -tags !nopkcs11"                                    # 传递给 go build 命令的其他参数
-          ldflags: "-X \"main.version=${{ env.VERSION }}\" -extldflags -static -s -w" # ldflags参数
-          md5sum: "false"
-          release_tag: "${{ env.APP_NAME }}-${{ env.VERSION }}"                       # 上传的标签
-          release_name: "${{ env.APP_NAME }}-${{ env.VERSION }}"                      # 上传的名字
-          compress_assets: "auto"                                                     # 自定义打包
-          overwrite: true                                                             # 覆盖
-          asset_name: "${{ env.BINARY }}-${{ matrix.goos }}-${{ matrix.goarch }}"     # 自定义名称
-  
+          name: ghostunnel-${{ matrix.goos }}-${{ matrix.goarch }}-${{ env.VERSION }}
+          path: ghostunnel/ghostunnel/release/
+          
+      - name: prepare release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        run: |
+          cd ghostunnel/ghostunnel/release
+          tar czf ghostunnel-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz ghostunnel
+          rm ghostunnel
+
+      - name: upload binaries to release
+        id: release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: ghostunnel/ghostunnel/release/*
+          file_glob: true
+          tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          overwrite: true
+          body: ${{ env.MSG }}
+
   
   update-repo:
     needs:
