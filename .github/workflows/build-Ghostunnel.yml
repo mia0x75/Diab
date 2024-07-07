@@ -159,12 +159,10 @@ jobs:
           ref: "${{ env.VERSION }}"
           fetch-depth: 1
 
-      - name: debug
-        run: |
-          cat tls.go
-
       - name: build releases
         uses: mia0x75/go-release-action@master
+        env:
+          CGO_ENABLE: 1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}                                   # 你的 GITHUB_TOKEN 用于将版本上传到 Github Release。
           goos: ${{ matrix.goos }}                                                    # 运行程序的操作系统
