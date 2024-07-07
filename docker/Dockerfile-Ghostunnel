@@ -1,7 +1,6 @@
 FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 WORKDIR /go/src/github.com/ghostunnel/ghostunnel
 ARG TARGETOS TARGETARCH BRANCH
-ENV CGO_ENABLED=0
 ENV GOOS=$TARGETOS
 ENV GOARCH=$TARGETARCH
 
