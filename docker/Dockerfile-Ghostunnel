@@ -9,7 +9,28 @@ RUN set -ex \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
   && apk update \
   && apk upgrade \
-  && apk add git upx \
+  && apk add git build-base make tzdata upx musl-dev gcc sqlite-dev curl tar \
+  && case "$TARGETOS" in \
+      "linux") ;; \
+      *) echo "ERROR: Unsupported OS: ${TARGETOS}"; exit 1 ;; \
+  esac \
+  && case "$TARGETARCH" in \
+    "amd64") \
+        FILE="x86_64-linux-musl-cross.tgz" \
+        export CC="x86_64-linux-musl-gcc" \
+    ;; \
+    "arm64") \
+        FILE="aarch64-linux-musl-cross.tgz" \
+        export CC="aarch64-linux-musl-gcc" \
+    ;; \
+    *) \
+        echo "ERROR: Unsupported CPU architecture: ${TARGETARCH}"; \
+        exit 1 \
+    ;; \
+  esac \
+  && curl -L -o ${FILE} "https://musl.nn.ci/${FILE}" \
+  && tar xf ${FILE} --strip-components 1 -C /usr/local \
+  && rm -f ${FILE} \
   && git clone -b $BRANCH --single-branch https://github.com/ghostunnel/ghostunnel /go/src/github.com/ghostunnel/ghostunnel \
   && go build -tags !nopkcs11 -v -trimpath -ldflags "-X \"main.version=${BRANCH}\" -s -w -buildid=" -o /release/ghostunnel \
   && upx --lzma /release/ghostunnel

@@ -136,6 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     name: build releases
     env:
+      CGO_ENABLED: 1
       BINARY: ghostunnel
       VERSION: ${{ needs.check-version.outputs.version }}
       GO_VERSION: ${{ needs.check-version.outputs.go_version }}
@@ -145,6 +146,13 @@ jobs:
       matrix:
         goos: [linux]
         goarch: [amd64, arm64]
+        include:
+          - goarch: amd64
+            musl: x86_64-linux-musl-cross.tgz
+            cc: x86_64-linux-musl-gcc
+          - goarch: arm64
+            musl: aarch64-linux-musl-cross.tgz
+            cc: aarch64-linux-musl-gcc
 
     steps:
       - name: checkout code
@@ -159,10 +167,21 @@ jobs:
           ref: "${{ env.VERSION }}"
           fetch-depth: 1
 
+      - name: initialize environment
+        run: |
+          sudo apt-get -qq update --fix-missing
+          sudo apt-get install -y build-essential git upx musl-dev musl-tools
+
+      - name: set up cross-compile environment
+        run: |
+          curl -L -o ${{ matrix.musl }} "https://musl.nn.ci/${{ matrix.musl }}"
+          sudo tar xf ${{ matrix.musl }} --strip-components 1 -C /usr/local
+          rm -f ${{ matrix.musl }}
+
       - name: build releases
         uses: mia0x75/go-release-action@master
         env:
-          CGO_ENABLED: 1
+          CC: ${{ matrix.cc }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}                                   # 你的 GITHUB_TOKEN 用于将版本上传到 Github Release。
           goos: ${{ matrix.goos }}                                                    # 运行程序的操作系统
