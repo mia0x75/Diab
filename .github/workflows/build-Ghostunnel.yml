@@ -160,13 +160,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: clone repository
-        uses: actions/checkout@v4
-        with:
-          repository: "${{ env.GITHUB_REPO }}"
-          ref: "${{ env.VERSION }}"
-          fetch-depth: 1
-
       - name: initialize environment
         run: |
           sudo apt-get -qq update --fix-missing
@@ -177,6 +170,10 @@ jobs:
           curl -L -o ${{ matrix.musl }} "https://musl.nn.ci/${{ matrix.musl }}"
           sudo tar xf ${{ matrix.musl }} --strip-components 1 -C /usr/local
           rm -f ${{ matrix.musl }}
+
+      - name: clone repository
+        run: |
+          git clone -b ${{ env.VERSION }} --single-branch  https://github.com/ghostunnel/ghostunnel ghostunnel/ghostunnel
 
       - name: build application
         id: build
