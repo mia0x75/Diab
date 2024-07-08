@@ -1,0 +1,267 @@
+name: "Auto Build Ghostunnel"
+
+on:
+  repository_dispatch:
+    types: [Auto Build Ghostunnel]
+    
+env:
+  DOCKER_REPO: 'ghostunnel'
+  GITHUB_REPO: 'ghostunnel/ghostunnel'
+  DOCKER_FILE: 'Dockerfile-Ghostunnel'
+  APP_NAME: 'Ghostunnel'
+
+permissions:
+  contents: write
+  packages: write
+  actions: write
+
+jobs:
+  process-dispatch:
+    runs-on: ubuntu-latest
+    name: "process dispatch"
+    outputs:
+      status: ${{ steps.check-repo-dispatch.outputs.status }}
+    steps:
+      - name: check-repo-dispatch
+        run: |
+          if [ "${{ env.GITHUB_REPO }}" = "${{ github.event.client_payload.owner }}/${{ github.event.client_payload.repo }}" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
+          
+  check-version:
+    needs: process-dispatch
+    if: ${{ needs.process-dispatch.outputs.status }} == 'success'
+    runs-on: ubuntu-latest
+    name: "check version"
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      commit: ${{ steps.get-version.outputs.commit }}
+      go_version: ${{ steps.get-version.outputs.go_version }}
+      build_date: ${{ steps.get-version.outputs.build_date }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: check version
+        id: get-version
+        run: |
+          LIST=$(wget -qO- --tries=3 "https://api.github.com/repos/${{ env.GITHUB_REPO }}/releases" | awk -F '"' '/tag_name/{print $(NF-1)}')
+          LATEST_VERSION=$(grep -vm1 '-' <<< "$LIST")
+          GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | awk 'NR==1' | sed 's/^go//')
+
+          BUILD_DATE=$(date +"%Y-%m-%d %H:%M.%S")
+          DATE=$(date "+%Y/%m/%d")
+          COMMIT="Build ${{ env.APP_NAME}} $LATEST_VERSION by Github Actions, $DATE"
+          
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "go_version=$GO_VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+
+
+  create-release:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: "Create release"
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      MSG: ${{ needs.check-version.outputs.commit }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: create release
+        uses: shogo82148/actions-create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          release_name: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          body: ${{ env.MSG }}
+          draft: false
+          prerelease: false
+          overwrite: true
+
+
+  build-docker-image:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: "build docker image"
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      VERSION: ${{ needs.check-version.outputs.version }}
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: login to dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: push images to dockerhub
+        uses: docker/build-push-action@v6
+        env:
+          DOCKERHUB_REPOSITORY: ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_REPO }}
+        with:
+          push: true
+          file: docker/${{ env.DOCKER_FILE }}
+          platforms: linux/amd64, linux/arm64
+          build-args: BRANCH=${{ env.VERSION }}
+          tags: |
+            ${{ env.DOCKERHUB_REPOSITORY }}:latest
+            ${{ env.DOCKERHUB_REPOSITORY }}:${{ env.VERSION }}
+
+
+  build-releases:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: build releases
+    env:
+      CGO_ENABLED: 1
+      BINARY: ghostunnel
+      VERSION: ${{ needs.check-version.outputs.version }}
+      GO_VERSION: ${{ needs.check-version.outputs.go_version }}
+      BUILD_DATE: ${{ needs.check-version.outputs.build_date }}
+
+    strategy:
+      matrix:
+        goos: [linux]
+        goarch: [amd64, arm64]
+        include:
+          - goarch: amd64
+            musl: x86_64-linux-musl-cross.tgz
+            cc: x86_64-linux-musl-gcc
+          - goarch: arm64
+            musl: aarch64-linux-musl-cross.tgz
+            cc: aarch64-linux-musl-gcc
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: initialize environment
+        run: |
+          sudo apt-get -qq update --fix-missing
+          sudo apt-get install -y build-essential git upx musl-dev musl-tools
+
+      - name: set up cross-compile environment
+        run: |
+          curl -L -o ${{ matrix.musl }} "https://musl.nn.ci/${{ matrix.musl }}"
+          sudo tar xf ${{ matrix.musl }} --strip-components 1 -C /usr/local
+          rm -f ${{ matrix.musl }}
+
+      - name: clone repository
+        run: |
+          git clone -b ${{ env.VERSION }} --single-branch  https://github.com/ghostunnel/ghostunnel ghostunnel/ghostunnel
+
+      - name: build application
+        id: build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CC: ${{ matrix.cc }}
+        run: |
+          cd ghostunnel/ghostunnel
+          go build -v -trimpath -tags !nopkcs11 -ldflags "--extldflags '-static -fpic' -w -s -buildid= -X \"main.version=${{ env.VERSION }}\"" -o release/ghostunnel
+          upx --lzma release/ghostunnel
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: upload binaries to artifact
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostunnel-${{ matrix.goos }}-${{ matrix.goarch }}-${{ env.VERSION }}
+          path: ghostunnel/ghostunnel/release/
+          
+      - name: prepare release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        run: |
+          cd ghostunnel/ghostunnel/release
+          tar czf ghostunnel-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz ghostunnel
+          rm ghostunnel
+
+      - name: upload binaries to release
+        id: release
+        if: steps.build.outputs.status == 'success' && !cancelled()
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: ghostunnel/ghostunnel/release/*
+          file_glob: true
+          tag: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          overwrite: true
+          body: ${{ env.MSG }}
+
+  
+  update-repo:
+    needs:
+      - check-version
+      - create-release
+      - build-docker-image
+      - build-releases
+    runs-on: ubuntu-latest
+    name: "update repo"
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      COMMIT: ${{ needs.check-version.outputs.commit }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      - name: mark
+        run: |
+          sudo apt-get install -y jq
+          
+          git checkout --orphan tmp_work
+          git branch -d main
+
+          sed -i -E 's/(\|\s*${{ env.APP_NAME }}\s*\|)\s*\S+\s*\|/\1 ${{ env.VERSION }} \|/' README.md
+
+          # Update repos.json
+          IFS='/' read -r owner repo <<< "${{ env.GITHUB_REPO }}"
+          jq --arg owner "$owner" --arg repo "$repo" --arg new_version "${{ env.VERSION }}" \
+              'map(if .owner == $owner and .repo == $repo then .version = $new_version else . end)' \
+              .github/workflows/repos.json > update_repos.json
+          mv update_repos.json .github/workflows/repos.json 
+
+      - name: upload to repository
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: ${{ env.COMMIT }}
+          create_branch: true
+          branch: main
+          push_options: --force
+
+      - name: delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: "${{ env.APP_NAME }}"
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_run_by_conclusion_pattern: "cancelled, skipped, success"
