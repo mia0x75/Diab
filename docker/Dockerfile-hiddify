@@ -1,0 +1,47 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/hiddify/hiddify-core
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add --no-cache git upx unzip curl \
+  && git clone -b ${BRANCH} --single-branch https://github.com/hiddify/hiddify-core /go/src/github.com/hiddify/hiddify-core \
+  && curl -L -o webui.zip  https://github.com/hiddify/Yacd-meta/archive/gh-pages.zip \
+  && unzip -d ./ -q webui.zip \
+  && rm webui.zip \
+  && mkdir -p /release/app /release/etc/hiddify \
+  && mv Yacd-meta-gh-pages /release/app/webui \
+  && ldflags="\
+     -buildid= \
+     -w -s " \
+  && tags="with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api,with_grpc,with_dhcp,with_low_memory,with_conntrack" \
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' $ldflags" -tags=$tags -o /release/app/hiddify ./cli/ \
+  && upx --lzma /release/app/hiddify \
+  && cp docker/hiddify.json /release/etc/hiddify
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+
+COPY --from=builder /release /
+
+#RUN set -ex \
+# && apk update \
+# && apk upgrade --no-cache \
+# && apk add --no-cache bash \
+# && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+ENV TZ=Asia/Shanghai
+ENV PUID=0 PGID=0 UMASK=022
+
+EXPOSE 2334
+EXPOSE 2335
+EXPOSE 6756
+EXPOSE 6450
+
+CMD [ "/app/hiddify", "run", "--config", "/etc/hiddify/hiddify.json" ]
