@@ -12,6 +12,7 @@ RUN set -ex \
   && apk add git build-base make tzdata upx \
   && git clone -b $BRANCH --single-branch https://github.com/bluenviron/mediamtx /go/src/github.com/bluenviron/mediamtx \
   && go generate ./... \
+  && mkdir -p /release/mediamtx \
   && go build -ldflags "-X github.com/bluenviron/mediamtx/internal/core.version=$BRANCH" -o /release/mediamtx/mediamtx \
   && upx --lzma /release/mediamtx/mediamtx \
   && cp  mediamtx.yml /release/mediamtx
@@ -24,5 +25,4 @@ RUN set -ex \
 
 WORKDIR /mediamtx
 COPY --from=builder /release/* /
-EXPOSE 9876
 ENTRYPOINT ["/mediamtx/mediamtx"]
