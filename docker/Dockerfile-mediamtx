@@ -18,11 +18,6 @@ RUN set -ex \
   && cp mediamtx.yml /mediamtx
 
 FROM --platform=$TARGETPLATFORM alpine AS dist
-RUN set -ex \
-  && apk upgrade \
-  && apk add --no-cache ffmpeg \
-  && rm -rf /var/cache/apk/*
-
 WORKDIR /mediamtx
 COPY --from=builder /mediamtx/* /mediamtx/
 ENTRYPOINT ["/mediamtx/mediamtx"]
