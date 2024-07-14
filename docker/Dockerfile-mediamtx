@@ -15,7 +15,8 @@ RUN set -ex \
   && mkdir -p /release/mediamtx \
   && go build -ldflags "-X github.com/bluenviron/mediamtx/internal/core.version=$BRANCH" -o /release/mediamtx/mediamtx \
   && upx --lzma /release/mediamtx/mediamtx \
-  && cp  mediamtx.yml /release/mediamtx
+  && cp mediamtx.yml /release/mediamtx \
+  && tree /release
 
 FROM --platform=$TARGETPLATFORM alpine AS dist
 RUN set -ex \
