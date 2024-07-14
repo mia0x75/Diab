@@ -20,10 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     name: "process dispatch"
     outputs:
-      status: ${{ steps.check-repo-dispatch.outputs.status }}
-      version: ${{ steps.process.outputs.version }}
+      status: ${{ steps.check.outputs.status }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - name: check-repo-dispatch
+        id: check
         run: |
           if [ "${{ env.GITHUB_REPO }}" = "${{ github.event.client_payload.owner }}/${{ github.event.client_payload.repo }}" ]; then
             echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
