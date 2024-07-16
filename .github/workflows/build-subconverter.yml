@@ -1,0 +1,198 @@
+name: "Auto Build subconverter"
+
+env:
+  DOCKER_REPO: 'subconverter'
+  GITHUB_REPO: 'tindy2013/subconverter'
+  DOCKER_FILE: 'Dockerfile-subconverter'
+  APP_NAME: 'subconverter'
+  
+on:
+  repository_dispatch:
+    types: [Auto Build subconverter]
+
+permissions:
+  contents: write
+  packages: write
+  actions: write
+
+jobs:
+  process-dispatch:
+    runs-on: ubuntu-latest
+    name: "process dispatch"
+    outputs:
+      status: ${{ steps.check-repo-dispatch.outputs.status }}
+    steps:
+      - name: check-repo-dispatch
+        run: |
+          if [ "${{ env.GITHUB_REPO }}" = "${{ github.event.client_payload.owner }}/${{ github.event.client_payload.repo }}" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+          
+  check-version:
+    needs: process-dispatch
+    if: ${{ needs.process-dispatch.outputs.status }} == 'success'
+    runs-on: ubuntu-latest
+    name: "check version"
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      toml11-version: ${{ steps.get-toml11-version.outputs.toml11-version }}
+      libcron-version: ${{ steps.get-libcron-version.outputs.libcron-version }}
+      commit: ${{ steps.get-version.outputs.commit }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version
+        id: get-version
+        run: |
+          LIST=$(wget -qO- --tries=3 "https://api.github.com/repos/${{ env.GITHUB_REPO }}/releases" | awk -F '"' '/tag_name/{print $(NF-1)}')
+          LATEST_VERSION=$(grep -vm1 '-' <<< "$LIST")
+          DATE=$(date "+%Y/%m/%d")
+          COMMIT="Build ${{ env.APP_NAME }} $LATEST_VERSION by Github Actions, $DATE"
+            
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+
+      - name: Check toml11 version
+        id: get-toml11-version
+        run: |
+          LIST=$(wget -qO- --tries=3 "https://api.github.com/repos/ToruNiina/toml11/releases" | awk -F '"' '/tag_name/{print $(NF-1)}')
+          LATEST_VERSION=$(grep -vm1 '-' <<< "$LIST")
+
+          echo "toml11-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check libcron version
+        id: get-libcron-version
+        run: |
+          LIST=$(wget -qO- --tries=3 "https://api.github.com/repos/PerMalmberg/libcron/releases" | awk -F '"' '/tag_name/{print $(NF-1)}')
+          LATEST_VERSION=$(grep -vm1 '-' <<< "$LIST")
+
+          echo "libcron-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+
+  create-release:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: "create release"
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      MSG: ${{ needs.check-version.outputs.commit }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: create releases
+        uses: shogo82148/actions-create-release@v1.6.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          release_name: ${{ env.APP_NAME }}-${{ env.VERSION }}
+          body: ${{ env.MSG }}
+          draft: false
+          prerelease: false
+          overwrite: true
+
+  
+  build-docker-image:
+    needs: check-version
+    runs-on: ubuntu-latest
+    name: "build docker image"
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      VERSION: ${{ needs.check-version.outputs.version }}
+      TOML11_BRANCH: ${{ needs.check-version.outputs.toml11-version }}
+      LIBCRON_BRANCH: ${{ needs.check-version.outputs.libcron-version }}
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: login to dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: push images to dockerhub
+        env:
+          DOCKERHUB_REPOSITORY: ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_REPO }}
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          file: docker/${{ env.DOCKER_FILE }}
+          platforms: linux/amd64, linux/arm64
+          build-args: |
+            BRANCH=${{ env.VERSION }}
+            TOML11_BRANCH=${{ env.TOML11_BRANCH }}
+            LIBCRON_BRANCH=${{ env.LIBCRON_BRANCH }}
+          tags: |
+            ${{ env.DOCKERHUB_REPOSITORY }}:latest
+            ${{ env.DOCKERHUB_REPOSITORY }}:${{ env.VERSION }}
+
+  
+  update-repo:
+    needs:
+      - check-version
+      - create-release
+      - build-docker-image
+    runs-on: ubuntu-latest
+    name: "update repo"
+    env:
+      VERSION: ${{ needs.check-version.outputs.version }}
+      COMMIT: ${{ needs.check-version.outputs.commit }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          fetch-depth: 0
+
+      - name: mark
+        run: |
+          git checkout --orphan tmp_work
+          git branch -d main
+
+          sed -i -E 's/(\|\s*${{ env.APP_NAME }}\s*\|)\s*\S+\s*\|/\1 ${{ env.VERSION }} \|/' README.md
+          
+          # Update repos.json
+          IFS='/' read -r owner repo <<< "${{ env.GITHUB_REPO }}"
+          jq --arg owner "$owner" --arg repo "$repo" --arg new_version "${{ env.VERSION }}" \
+              'map(if .owner == $owner and .repo == $repo then .version = $new_version else . end)' \
+              .github/workflows/repos.json > update_repos.json
+          mv update_repos.json .github/workflows/repos.json
+          cat .github/workflows/repos.json
+
+      - name: upload to repository
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: ${{ env.COMMIT }}
+          create_branch: true
+          branch: main
+          push_options: --force
+
+      - name: delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: "${{ env.APP_NAME }}"
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_run_by_conclusion_pattern: "cancelled, skipped, success"
