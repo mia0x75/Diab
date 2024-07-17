@@ -1,0 +1,53 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/dolthub/dolt
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=1
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git build-base make tzdata upx musl-dev gcc curl \
+  && case "$TARGETOS" in \
+      "linux") ;; \
+      *) echo "ERROR: Unsupported OS: ${TARGETOS}"; exit 1 ;; \
+  esac \
+  && case "$TARGETARCH" in \
+    "amd64") \
+        FILE="x86_64-linux-musl-cross.tgz" \
+        export CC="x86_64-linux-musl-gcc" \
+    ;; \
+    "arm64") \
+        FILE="aarch64-linux-musl-cross.tgz" \
+        export CC="aarch64-linux-musl-gcc" \
+    ;; \
+    *) \
+        echo "ERROR: Unsupported CPU architecture: ${TARGETARCH}"; \
+        exit 1 \
+    ;; \
+  esac \
+  && curl -L -o ${FILE} "https://musl.nn.ci/${FILE}" \
+  && tar xf ${FILE} --strip-components 1 -C /usr/local \
+  && rm -f ${FILE} \
+  && git clone -b $BRANCH --single-branch https://github.com/dolthub/dolt . \
+  && cd go \
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' -w -s" -o /release/usr/local/bin/dolt ./cmd/dolt
+
+COPY ./extras/Dolt-entrypoint.sh /release/entrypoint.sh
+RUN chmod +x /release/entrypoint.sh
+RUN mkdir /release/docker-entrypoint-initdb.d
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+RUN set -ex \
+  && apk upgrade \
+  && apk add --no-cache tini ca-certificates \
+  && rm -rf /var/cache/apk/*
+
+VOLUME /var/lib/dolt
+COPY --from=builder /release /
+EXPOSE 3306 33060
+WORKDIR /var/lib/dolt
+ENTRYPOINT ["tini", "--", "/entrypoint.sh"]
+
