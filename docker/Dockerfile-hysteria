@@ -1,0 +1,43 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/apernet/hysteria
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk --no-cache add git build-base upx ca-certificates bash python3 \
+  && git clone -b "app/${BRANCH}" --single-branch https://github.com/apernet/hysteria /go/src/github.com/apernet/hysteria \
+  && buildDate=$(date +"%Y-%m-%d %H:%M.%S") \
+  && releaseVersion=$(echo $BRANCH | sed 's/^\w\+\///g') \
+  && gitCommit=$(git rev-parse HEAD) \
+  && go build -v -trimpath -ldflags "-X \"github.com/apernet/hysteria/app/v2/cmd.appVersion=${releaseVersion}\" -X \"github.com/apernet/hysteria/app/v2/cmd.appCommit=${gitCommit}\" -X \"github.com/apernet/hysteria/app/v2/cmd.appDate=${buildDate}\" -X \"github.com/apernet/hysteria/app/v2/cmd.appType=release\" -X \"github.com/apernet/hysteria/app/v2/cmd.appPlatform=${TARGETOS}\" -X \"github.com/apernet/hysteria/app/v2/cmd.appArch=${TARGETARCH}\" -s -w -buildid=" \
+      -o /go/bin/hysteria \
+      ./app \
+  && upx --lzma /go/bin/hysteria
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+# bash is used for debugging, tzdata is used to add timezone information.
+# Install ca-certificates to ensure no CA certificate errors.
+#
+# Do not try to add the "--no-cache" option when there are multiple "apk"
+# commands, this will cause the build process to become very slow.
+RUN set -ex \
+  && apk upgrade \
+  && apk --no-cache add bash tzdata ca-certificates \
+  && rm -rf /var/cache/apk/* \
+  &&  mkdir /app \
+  && if [ ! -e /etc/nsswitch.conf ]; then echo 'hosts: files dns' > /etc/nsswitch.conf; fi
+
+# set up nsswitch.conf for Go's "netgo" implementation
+# - https://github.com/golang/go/blob/go1.9.1/src/net/conf.go#L194-L275
+# - docker run --rm debian:stretch grep '^hosts:' /etc/nsswitch.conf
+# RUN if [ ! -e /etc/nsswitch.conf ]; then echo 'hosts: files dns' > /etc/nsswitch.conf; fi
+
+WORKDIR /app
+COPY --from=builder /go/bin/hysteria .
+
+CMD ["/app/hysteria"]
