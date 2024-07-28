@@ -1,0 +1,26 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/projectdiscovery/proxify
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git upx \
+  && git clone -b $BRANCH --single-branch https://github.com/projectdiscovery/proxify /go/src/github.com/projectdiscovery/proxify \
+  && go build -v -trimpath -ldflags "-s -w -buildid=" -o /release/proxify ./cmd/proxify \
+  && upx --lzma /release/proxify
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+
+WORKDIR /app
+
+RUN apk add --no-cache --update bind-tools ca-certificates \
+ && rm -rf /var/cache/apk/*
+
+COPY --from=builder /release/proxify /app/proxify
+
+ENTRYPOINT ["/app/proxify"]
