@@ -1,0 +1,19 @@
+FROM --platform=$BUILDPLATFORM alpine AS builder
+ARG THREADS="4"
+ARG SHA=""
+
+# build minimized
+WORKDIR /root
+
+RUN set -xe && apk update
+RUN apk add --no-cache --virtual .build-tools git g++ build-base linux-headers cmake make \
+ && git clone --branch master --single-branch https://github.com/Wind4/vlmcsd.git \
+ && cd vlmcsd \
+ && make
+
+# build final image
+FROM --platform=$BUILDPLATFORM alpine
+COPY --from=builder /root/vlmcsd/bin/vlmcsd /usr/bin/vlmcsd
+EXPOSE 1688/tcp
+ENTRYPOINT [ "/usr/bin/vlmcsd" ]
+CMD [ "-e", "-D", "-d" ]

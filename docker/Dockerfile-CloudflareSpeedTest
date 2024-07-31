@@ -1,0 +1,33 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/XIU2/CloudflareSpeedTest
+ARG TARGETOS TARGETARCH TAG
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+ENV VERSION=$TAG
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add git build-base upx \
+  && git clone -b $VERSION --single-branch https://github.com/XIU2/CloudflareSpeedTest /go/src/github.com/XIU2/CloudflareSpeedTest \
+  && go build -v -trimpath \
+    -o /release/CloudflareSpeedTest \
+    -ldflags "-s -w -buildid= -X main.version=$VERSION" \
+  && upx --lzma /release/CloudflareSpeedTest \
+  && cp *.txt /release/
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+WORKDIR /app
+RUN set -ex \
+  && apk upgrade \
+  && apk add bash tzdata ca-certificates \
+  && rm -rf /var/cache/apk/*
+
+COPY --from=builder /release/* /app
+# Add the cron job
+RUN echo "0 1 * * 1 cd /app && ./CloudflareST -tl 300 -cfcolo HKG,SIN,ICN -sl 8 -f ip.txt -o result.csv" >> /etc/crontabs/root
+
+# Run the command on container startup
+CMD ["crond", "-f"]
