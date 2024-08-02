@@ -1,0 +1,71 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/drakkan/sftpgo
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=1
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+ENV GOFLAGS="-mod=readonly"
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add --no-cache git build-base make tzdata upx musl-dev gcc g++ curl tar ca-certificates bash sqlite-dev \
+  && case "$TARGETOS" in \
+      "linux") ;; \
+      *) echo "ERROR: Unsupported OS: ${TARGETOS}"; exit 1 ;; \
+  esac \
+  && case "$TARGETARCH" in \
+    "amd64") \
+        FILE="x86_64-linux-musl-cross.tgz" \
+        export CC="x86_64-linux-musl-gcc" \
+    ;; \
+    "arm64") \
+        FILE="aarch64-linux-musl-cross.tgz" \
+        export CC="aarch64-linux-musl-gcc" \
+    ;; \
+    *) \
+        echo "ERROR: Unsupported CPU architecture: ${TARGETARCH}"; \
+        exit 1 \
+    ;; \
+  esac \
+  && curl -L -o ${FILE} "https://musl.nn.ci/${FILE}" \
+  && tar xf ${FILE} --strip-components 1 -C /usr/local \
+  && rm -f ${FILE} \
+  && git clone -b $BRANCH --single-branch https://github.com/drakkan/sftpgo /go/src/github.com/drakkan/sftpgo \
+  && export COMMIT_SHA=${COMMIT_SHA:-$(git describe --always --abbrev=8 --dirty)} \
+  && ldflags="\
+     -buildid= \
+     -w -s \
+     -X 'github.com/drakkan/sftpgo/v2/internal/version.commit=${COMMIT_SHA}' \
+     -X 'github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`'" \
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' $ldflags" -o /release/usr/local/bin/sftpgo \
+  && upx --lzma /release/usr/local/bin/sftpgo \
+  && mkdir -p /release/etc/sftpgo /release/var/lib/sftpgo /release/usr/share/sftpgo /release/srv/sftpgo/data /release/srv/sftpgo/backups \
+  && cp sftpgo.json /release/etc/sftpgo/sftpgo.json \
+  && cp -R templates /release/usr/share/sftpgo/templates \
+  && cp -R static /release/usr/share/sftpgo/static \
+  && cp -R openapi /release/usr/share/sftpgo/openapi  
+
+FROM alpine:3.20
+
+COPY --from=builder /release /
+
+RUN apk -U upgrade --no-cache \
+ && apk add --update --no-cache ca-certificates tzdata mailcap jq git rsync \
+ && rm -rf /var/cache/apk/* \
+ && addgroup -g 1000 -S sftpgo \
+ && adduser -u 1000 -h /var/lib/sftpgo -s /sbin/nologin -G sftpgo -S -D -H -g "SFTPGo user" sftpgo \
+ && sed -i 's|"users_base_dir": "",|"users_base_dir": "/srv/sftpgo/data",|' /etc/sftpgo/sftpgo.json \
+ && sed -i 's|"backups"|"/srv/sftpgo/backups"|' /etc/sftpgo/sftpgo.json \
+ && chown -R sftpgo:sftpgo /etc/sftpgo /srv/sftpgo \
+ && chown sftpgo:sftpgo /var/lib/sftpgo \
+ && chmod 700 /srv/sftpgo/backups
+
+WORKDIR /var/lib/sftpgo
+
+USER 1000:1000
+EXPOSE 8080
+
+CMD ["sftpgo", "serve"]
