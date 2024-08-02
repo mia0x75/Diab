@@ -1,0 +1,36 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/xmdhs/clash2sfa
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=0
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk --no-cache add git build-base upx ca-certificates \
+  && git clone -b $BRANCH --single-branch https://github.com/xmdhs/clash2sfa /go/src/github.com/xmdhs/clash2sfa \
+  && go build -v -trimpath -o /go/bin/clash2sfa -ldflags "-w -s -buildid=" . \
+  && upx --lzma /go/bin/clash2sfa
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+RUN set -ex \
+  && apk upgrade \
+  && apk --no-cache add bash tzdata ca-certificates \
+  && rm -rf /var/cache/apk/* \
+  &&  mkdir /server \
+  &&  mkdir /server/db\
+  &&  adduser -H -D server\
+  &&  chown -R server /server
+
+USER server
+WORKDIR /server
+COPY --from=builder /go/bin/clash2sfa .
+
+WORKDIR /server/db
+
+EXPOSE 8080
+VOLUME /server/db
+
+CMD ["/server/clash2sfa"]
