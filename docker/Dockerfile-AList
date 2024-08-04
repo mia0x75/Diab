@@ -1,0 +1,80 @@
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+WORKDIR /go/src/github.com/alist-org/alist
+ARG TARGETOS TARGETARCH BRANCH
+ENV CGO_ENABLED=1
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+  && apk update \
+  && apk upgrade \
+  && apk add --no-cache git build-base make tzdata upx musl-dev gcc sqlite-dev curl tar \
+  && case "$TARGETOS" in \
+      "linux") ;; \
+      *) echo "ERROR: Unsupported OS: ${TARGETOS}"; exit 1 ;; \
+  esac \
+  && case "$TARGETARCH" in \
+    "amd64") \
+        FILE="x86_64-linux-musl-cross.tgz" \
+        export CC="x86_64-linux-musl-gcc" \
+    ;; \
+    "arm64") \
+        FILE="aarch64-linux-musl-cross.tgz" \
+        export CC="aarch64-linux-musl-gcc" \
+    ;; \
+    *) \
+        echo "ERROR: Unsupported CPU architecture: ${TARGETARCH}"; \
+        exit 1 \
+    ;; \
+  esac \
+  && curl -L -o ${FILE} "https://musl.nn.ci/${FILE}" \
+  && tar xf ${FILE} --strip-components 1 -C /usr/local \
+  && rm -f ${FILE} \
+  && git clone --single-branch https://github.com/alist-org/alist /go/src/github.com/alist-org/alist \
+  && goVersion=$(go version | sed 's/go version //') \
+  && buildDate=$(date +'%F %T %z') \
+  && author="Xhofe <i@nn.ci>" \
+  && releaseVersion=$(git describe --abbrev=0 --tags) \
+  && commit=$(git log --pretty=format:"%h" -1) \
+  && webVersion=$(wget -qO- -t1 -T2 "https://api.github.com/repos/alist-org/alist-web/releases/latest" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g') \
+  && curl -L https://github.com/alist-org/alist-web/releases/latest/download/dist.tar.gz -o dist.tar.gz \
+  && tar -zxvf dist.tar.gz \
+  && rm -rf public/dist \
+  && mv -f dist public \
+  && rm -rf dist.tar.gz \
+  && ldflags="\
+     -buildid= \
+     -w -s \
+     -X 'github.com/alist-org/alist/v3/internal/conf.BuiltAt=$(date +'%F %T %z')' \
+     -X 'github.com/alist-org/alist/v3/internal/conf.GoVersion=$goVersion' \
+     -X 'github.com/alist-org/alist/v3/internal/conf.GitAuthor=$author' \
+     -X 'github.com/alist-org/alist/v3/internal/conf.GitCommit=$commit' \
+     -X 'github.com/alist-org/alist/v3/internal/conf.Version=$releaseVersion' \
+     -X 'github.com/alist-org/alist/v3/internal/conf.WebVersion=v$webVersion'" \
+  && go build -v -trimpath -ldflags "--extldflags '-static -fpic' $ldflags" -tags=jsoniter -o alist \
+  && mkdir /release/opt/alist/data -p \
+  && cp alist /release/opt/alist/ \
+  && cp entrypoint.sh /release/ \
+  && upx --lzma /release/opt/alist/alist
+
+FROM --platform=$TARGETPLATFORM alpine AS dist
+
+COPY --from=builder /release /
+
+RUN set -ex \
+ && apk update \
+ && apk upgrade --no-cache \
+ && apk add --no-cache bash ca-certificates su-exec tzdata; chmod +x /entrypoint.sh \
+ && rm -rf /var/cache/apk/*
+
+VOLUME /opt/alist/data/
+
+WORKDIR /opt/alist/
+
+ENV TZ=Asia/Shanghai
+ENV PUID=0 PGID=0 UMASK=022
+
+EXPOSE 5244 5245
+
+CMD [ "/entrypoint.sh" ]
