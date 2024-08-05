@@ -1,0 +1,51 @@
+FROM --platform=$BUILDPLATFORM alpine AS builder
+WORKDIR /build/www
+ARG TARGETOS TARGETARCH TAG
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
+
+RUN set -ex \
+  && apk add git build-base make tzdata \
+  && git clone --depth 1 https://github.com/cedar2025/Xboard /build/www \
+  && cd /build/www \
+  && git fetch --tags \
+  && git checkout tags/${TAG}
+
+RUN rm -rf /build/www/.github \
+ && rm -rf /build/www/.git \
+ && rm -rf /build/www/docs \
+ && rm -rf /build/www/tests \
+ && rm -rf /build/www/.dockerignore \
+ && rm -rf /build/www/.editorconfig \
+ && rm -rf /build/www/.env.example \
+ && rm -rf /build/www/.gitattributes \
+ && rm -rf /build/www/.gitignore \
+ && rm -rf /build/www/Dockerfile \
+ && rm -rf /build/www/LICENSE \
+ && rm -rf /build/www/README.md \
+ && rm -rf /build/www/readme.md \
+ && rm -rf /build/www/docker-compose.sample.yaml \
+ && rm -rf /build/www/phpunit.xml \
+ && find . -type f -name '.gitignore' -exec rm -f {} \; \
+ && mv /build/www/.docker /build
+
+FROM --platform=$BUILDPLATFORM phpswoole/swoole:php8.3-alpine
+
+#复制项目文件以及配置文件
+WORKDIR /www
+
+ENV TZ=Asia/Shanghai
+
+COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+COPY --from=builder /build /
+  
+RUN install-php-extensions pcntl bcmath inotify \ 
+  && apk --no-cache add shadow supervisor nginx sqlite nginx-mod-http-brotli mysql-client git patch \
+  && addgroup -S -g 1000 www && adduser -S -G www -u 1000 www \
+  && rm -rf /var/cache/apk/* \
+  && composer install --optimize-autoloader --no-cache --no-dev \
+  && php artisan storage:link \
+  && chown -R www:www /www \
+  && chmod -R 775 /www
+  
+CMD ["/usr/bin/supervisord", "--nodaemon", "-c", "/etc/supervisor/supervisord.conf"]
